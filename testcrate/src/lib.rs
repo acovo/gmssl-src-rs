@@ -16,15 +16,38 @@ pub struct Sm4Key {
 extern "C" {
     pub fn gmssl_version_num() -> c_ulong;
     pub fn gmssl_version_str() -> *mut c_char;
+
     pub fn sm3_digest(data:*const c_uchar, datalen:c_uint, dgst: *mut [u8;32]) ->c_void;
+
     pub fn sm4_set_encrypt_key(key: &mut Sm4Key, user_key:&[u8;16]);
     pub fn sm4_set_decrypt_key(key: &mut Sm4Key, user_key:&[u8;16]);
+
     pub fn sm4_encrypt(key:&Sm4Key,in_data:&[u8;SM4_BLOCK_SIZE],out:*mut [u8;SM4_BLOCK_SIZE])->c_void;
+
+    pub fn sm4_cbc_encrypt(key:&Sm4Key, iv:&[u8;SM4_BLOCK_SIZE], in_data: *const u8, nBlocks:usize,
+                           out: &mut [u8]) ->c_void;
+    pub fn sm4_cbc_decrypt(key:&Sm4Key, iv:&[u8;SM4_BLOCK_SIZE], in_data: *const u8, nBlocks:usize,
+                           out: &mut [u8]) ->c_void;
+    pub fn sm4_cbc_padding_encrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:&u8,inLen:usize,nBlocks:usize,
+                           out:&mut [u8],outlen:*mut usize)->c_void;
+    pub fn sm4_cbc_padding_decrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:&u8,inLen:usize,nBlocks:usize,
+                                   out:&mut [u8],outlen:*mut usize)->c_void;
+
+    pub fn sm4_ctr_encrypt(key:&Sm4Key,ctr:&[u8;SM4_BLOCK_SIZE],in_data:&u8, inlen:usize,out:*mut u8);
 }
 
 fn print_hex(data:Vec<u8>) {
     for pos in 0..data.len() {
         print!("{:02X} ",data.get(pos).unwrap());
+        if pos%16 ==15 {
+            println!("");
+        }
+    }
+}
+
+fn print_hex_array(data:&[u8]) {
+   for pos in 0..data.len() {
+        print!("{:02X} ",data[pos]);
         if pos%16 ==15 {
             println!("");
         }
@@ -133,5 +156,41 @@ fn sm4_encrypt_works() {
         sm4_encrypt(&sm4_key, &ciphertext, &mut plaintext_decrypt);
 
         assert!(plaintext_decrypt==plaintext);
+    }
+}
+
+#[test]
+fn sm4_cbc_encrypt_works() {
+    unsafe {
+        let mut sm4_key: Sm4Key = Sm4Key {
+            rk: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        };
+
+        let user_key: [u8; 16] = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+            0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        ];
+
+        let iv = user_key.clone();
+
+        let plaintext:[u8;16] = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+            0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        ];
+
+        let mut cipher_ptr=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0];
+        let mut plain_ptr=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0];
+
+        sm4_set_encrypt_key(&mut sm4_key, &user_key);
+        sm4_cbc_encrypt(&sm4_key, &iv, plaintext.as_ptr(), 1, &mut cipher_ptr);
+        println!("cipher_cbc->");
+        print_hex(cipher_ptr.to_vec());
+
+        sm4_set_decrypt_key(&mut sm4_key, &user_key);
+        sm4_cbc_decrypt(&sm4_key, &iv, cipher_ptr.as_ptr(), 1, &mut plain_ptr);
+        println!("plain_cbc->");
+        print_hex(plain_ptr.to_vec());
+
+        assert!(plain_ptr==plaintext);
     }
 }
