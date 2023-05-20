@@ -18,6 +18,7 @@ extern "C" {
     pub fn gmssl_version_str() -> *mut c_char;
     pub fn sm3_digest(data:*const c_uchar, datalen:c_uint, dgst: *mut [u8;32]) ->c_void;
     pub fn sm4_set_encrypt_key(key: &mut Sm4Key, user_key:&[u8;16]);
+    pub fn sm4_set_decrypt_key(key: &mut Sm4Key, user_key:&[u8;16]);
     pub fn sm4_encrypt(key:&Sm4Key,in_data:&[u8;SM4_BLOCK_SIZE],out:*mut [u8;SM4_BLOCK_SIZE])->c_void;
 }
 
@@ -39,7 +40,7 @@ fn print_hex_u32(data:Vec<u32>) {
     }
 }
 
-//#[test]
+#[test]
 fn version_code_works() {
     unsafe {
         println!("{}", gmssl_version_num());
@@ -47,7 +48,7 @@ fn version_code_works() {
     }
 }
 
-//#[test]
+#[test]
 fn version_name_works() {
     unsafe {
         let ret = gmssl_version_str();
@@ -57,7 +58,7 @@ fn version_name_works() {
     }
 }
 
-//#[test]
+#[test]
 fn sm3_digest_works() {
     unsafe {
 
@@ -122,5 +123,15 @@ fn sm4_encrypt_works() {
         ];
 
         assert!(ciphertext==ciphertext_expect);
+
+
+        sm4_set_decrypt_key(&mut sm4_key, &user_key);
+        println!("sm4-rk ->");
+        print_hex_u32(sm4_key.rk.to_vec());
+
+        let mut plaintext_decrypt:[u8;16] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+        sm4_encrypt(&sm4_key, &ciphertext, &mut plaintext_decrypt);
+
+        assert!(plaintext_decrypt==plaintext);
     }
 }
