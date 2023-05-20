@@ -1,6 +1,6 @@
 [package]
 name = "gmssl-src"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jason Honor<jasonhonor@outlook.com>"]
 license = "MIT"
 readme = "README.md"
