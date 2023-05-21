@@ -28,12 +28,12 @@ extern "C" {
                            out: &mut [u8]) ->c_void;
     pub fn sm4_cbc_decrypt(key:&Sm4Key, iv:&[u8;SM4_BLOCK_SIZE], in_data: *const u8, nBlocks:usize,
                            out: &mut [u8]) ->c_void;
-    pub fn sm4_cbc_padding_encrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:&u8,inLen:usize,nBlocks:usize,
-                           out:&mut [u8],outlen:*mut usize)->c_void;
-    pub fn sm4_cbc_padding_decrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:&u8,inLen:usize,nBlocks:usize,
-                                   out:&mut [u8],outlen:*mut usize)->c_void;
+    pub fn sm4_cbc_padding_encrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:*const u8,inLen:usize,
+                           out:*mut u8,outlen:*mut usize)->c_void;
+    pub fn sm4_cbc_padding_decrypt(key:&Sm4Key,iv:&[u8;SM4_BLOCK_SIZE],in_data:*const u8,inLen:usize,
+                                   out:*mut u8,outlen:*mut usize)->c_void;
 
-    pub fn sm4_ctr_encrypt(key:&Sm4Key,ctr:&[u8;SM4_BLOCK_SIZE],in_data:&u8, inlen:usize,out:*mut u8);
+    pub fn sm4_ctr_encrypt(key:&Sm4Key,ctr:&[u8;SM4_BLOCK_SIZE],in_data:*const u8, inlen:usize,out:*mut u8);
 }
 
 fn print_hex(data:Vec<u8>) {
@@ -192,5 +192,55 @@ fn sm4_cbc_encrypt_works() {
         print_hex(plain_ptr.to_vec());
 
         assert!(plain_ptr==plaintext);
+    }
+}
+
+
+#[test]
+fn sm4_cbc_pdding_encrypt_works() {
+    unsafe {
+        let mut sm4_key_enc: Sm4Key = Sm4Key {
+            rk: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        };
+
+        let mut sm4_key_dec: Sm4Key = Sm4Key {
+            rk: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        };
+
+        let user_key: [u8; 16] = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+            0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        ];
+
+        let iv = user_key.clone();
+
+        let plaintext:[u8;16] = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+            0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        ];
+
+        let mut cipher_ptr=vec![0 as u8;128];
+        let mut plain_ptr=vec![0 as u8;128];
+
+        let mut outlen:usize = 0;
+        sm4_set_encrypt_key(&mut sm4_key_enc, &user_key);
+        sm4_cbc_padding_encrypt(&sm4_key_enc, &iv, plaintext.to_vec().as_ptr(), plaintext.to_vec().len(),
+                                cipher_ptr.as_mut_ptr(),&mut outlen);
+        println!("cipher_cbc_padding->{}",outlen);
+        let mut vec_enc = cipher_ptr.to_vec();
+        vec_enc.resize(outlen,0);
+        print_hex(vec_enc);
+
+
+        sm4_set_decrypt_key(&mut sm4_key_dec, &user_key);
+        sm4_cbc_padding_decrypt(&sm4_key_dec, &iv, cipher_ptr.to_vec().as_ptr(), outlen,
+                                plain_ptr.as_mut_ptr(),&mut outlen);
+        println!("cipher_cbc_plain->{}",outlen);
+
+        let mut vec = plain_ptr.to_vec();
+        vec.resize(outlen,0);
+        print_hex(vec.clone());
+
+        assert!(vec.as_slice()==plaintext);
     }
 }
